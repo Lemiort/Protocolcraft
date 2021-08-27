@@ -6,3 +6,5 @@
 /Assets/*/server*/
 /Assets/*/client.jar
 /scripts/
+.vscode/
+test_package/build/
