@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 
-project(Botcraft)
+project(Protocolcraft)
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(TARGETS)
@@ -12,12 +12,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-option(BOTCRAFT_USE_OPENGL_GUI "Activate if you want to use OpenGL renderer" ON)
-if(BOTCRAFT_USE_OPENGL_GUI)
-    option(BOTCRAFT_USE_IMGUI "Activate if you want to use display information on screen with ImGui" ON)
-endif()
-option(BOTCRAFT_COMPRESSION "Activate if compression is enabled on the server" ON)
-option(BOTCRAFT_ENCRYPTION "Activate if you want to connect to a server in online mode" ON)
+option(PROTOCOLCRAFT_COMPRESSION "Activate if compression is enabled on the server" ON)
+option(PROTOCOLCRAFT_ENCRYPTION "Activate if you want to connect to a server in online mode" ON)
+
 
 # Version selection stuffs
 set(GAME_VERSION "latest" CACHE STRING "Each version of the game uses a specific protocol. Make sure this matches the version of your server.")
@@ -29,44 +26,56 @@ set_property(CACHE GAME_VERSION PROPERTY STRINGS ${GameVersionValues})
 if(GAME_VERSION STREQUAL "latest")
     list(GET GameVersionValues -2 GAME_VERSION)
 endif()
-    list(FIND GameVersionValues ${GAME_VERSION} game_version_index)
-    list(GET ProtocolVersionValues ${game_version_index} PROTOCOL_VERSION)
+list(FIND GameVersionValues ${GAME_VERSION} game_version_index)
+list(GET ProtocolVersionValues ${game_version_index} PROTOCOL_VERSION)
 message(STATUS "Selected game version: " ${GAME_VERSION} " || Protocol: " ${PROTOCOL_VERSION})
-
-# Check if the minecraft assets folder already exists
-# If not, download the client and extract the assets
-if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/minecraft)
-    list(GET ClientURLs ${game_version_index} VERSION_CLIENTURL)
-    message(STATUS "Downloading assets for version " ${GAME_VERSION} " from " ${VERSION_CLIENTURL} "...")
-    file(DOWNLOAD ${VERSION_CLIENTURL} ${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/client.jar)
-    message(STATUS "Extracting assets...")
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/temp/)
-    execute_process(COMMAND "cmake" "-E" "tar" "xfz" "${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/client.jar" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/temp/)
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/temp/assets/minecraft/ DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/minecraft/)
-    message(STATUS "Removing temp folder")
-    file(REMOVE_RECURSE ${CMAKE_CURRENT_SOURCE_DIR}/Assets/${GAME_VERSION}/temp)
-endif()
-
-option(BOTCRAFT_BUILD_EXAMPLES "Set to compile examples with the library" ON)
-option(BOTCRAFT_INSTALL_ASSETS "Set to copy used assets to installation folder" ON)
-
-set(ASSET_DIR ../Assets/${GAME_VERSION})
-
-if(BOTCRAFT_USE_OPENGL_GUI)
-    # Add OpenGL
-    find_package(OpenGL REQUIRED)
-
-    if(BOTCRAFT_USE_IMGUI)
-        # Add Dear Imgui impl
-        add_subdirectory(3rdparty/imgui_impl)
-    endif()
-endif()
 
 # Check pthreads
 find_package(Threads)
 
-add_subdirectory(protocolCraft)
-add_subdirectory(botcraft)
-if(BOTCRAFT_BUILD_EXAMPLES)
-    add_subdirectory(Examples)
-endif()
+file(GLOB_RECURSE protocolCraft_SRC 
+    "src/*.cpp" 
+    "src/*.cxx"
+)
+
+add_library(protocolCraft STATIC ${protocolCraft_SRC})
+set_property(TARGET protocolCraft PROPERTY CXX_STANDARD 11)
+set_property(TARGET protocolCraft PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+# Set version
+target_compile_definitions(protocolCraft PUBLIC PROTOCOL_VERSION=${PROTOCOL_VERSION})
+
+# Add include folders
+target_include_directories(protocolCraft 
+    PUBLIC 
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(protocolCraft
+    PUBLIC
+        CONAN_PKG::nlohmann_json
+)
+
+
+# Installation stuff
+include(GNUInstallDirs)
+
+install(TARGETS protocolCraft
+    EXPORT protocolCraft-targets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+    
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/protocolCraft
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT protocolCraft-targets
+    FILE protocolCraft-targets.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/protocolCraft
+)
+
+export(EXPORT protocolCraft-targets
+    FILE ${CMAKE_CURRENT_BINARY_DIR}/cmake/protocolCraft-targets.cmake
+)
