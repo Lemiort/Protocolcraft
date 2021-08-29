@@ -6,10 +6,9 @@ class ProtocolcraftConan(ConanFile):
     name = "protocolcraft"
     version = "0.1.0"
     license = "GPL-3.0-or-later"
-    author = "Lemiort"
     url = "https://github.com/Lemiort/Protocolcraft"
-    description = "Protocolcraft is a cross-platform C++ library to connect and interact with Minecraft servers."
-    topics = ("minecraft", "bot")
+    description = "Protocolcraft is a cross-platform C++ library to connect with Minecraft servers."
+    topics = ("minecraft", "protcol")
     settings = "os", "compiler", "build_type", "arch"
     options = { "compression": [
         True, False], "encryption": [True, False], "game_version": "ANY",
